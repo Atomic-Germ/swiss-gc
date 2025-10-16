@@ -458,29 +458,35 @@ bool deviceHandler_FAT_test_ata_c() {
 }
 
 u32 deviceHandler_FAT_emulated_sd() {
+	u32 result = EMU_READ | EMU_BUS_ARBITER;
+	
 	if ((swissSettings.emulateAudioStream == 1 && swissSettings.audioStreaming) ||
 		swissSettings.emulateAudioStream > 1)
-		return EMU_READ | EMU_AUDIO_STREAMING | EMU_BUS_ARBITER;
-	else if (swissSettings.emulateReadSpeed)
-		return EMU_READ | EMU_READ_SPEED | EMU_BUS_ARBITER;
+		result |= EMU_AUDIO_STREAMING;
+	
+	if (swissSettings.emulateReadSpeed)
+		result |= EMU_READ_SPEED;
 	else if (swissSettings.emulateEthernet && (devices[DEVICE_CUR]->emulable & EMU_ETHERNET))
-		return EMU_READ | EMU_ETHERNET | EMU_BUS_ARBITER | EMU_NO_PAUSING;
+		result = (result & ~EMU_BUS_ARBITER) | EMU_ETHERNET | EMU_BUS_ARBITER | EMU_NO_PAUSING;
 	else if (swissSettings.emulateMemoryCard)
-		return EMU_READ | EMU_MEMCARD | EMU_BUS_ARBITER;
-	else
-		return EMU_READ | EMU_BUS_ARBITER;
+		result |= EMU_MEMCARD;
+	
+	return result;
 }
 
 u32 deviceHandler_FAT_emulated_ata() {
+	u32 result = EMU_READ | EMU_BUS_ARBITER;
+	
 	if ((swissSettings.emulateAudioStream == 1 && swissSettings.audioStreaming) ||
 		swissSettings.emulateAudioStream > 1)
-		return EMU_READ | EMU_AUDIO_STREAMING | EMU_BUS_ARBITER;
-	else if (swissSettings.emulateEthernet && (devices[DEVICE_CUR]->emulable & EMU_ETHERNET))
-		return EMU_READ | EMU_ETHERNET | EMU_BUS_ARBITER | EMU_NO_PAUSING;
+		result |= EMU_AUDIO_STREAMING;
+	
+	if (swissSettings.emulateEthernet && (devices[DEVICE_CUR]->emulable & EMU_ETHERNET))
+		result = (result & ~EMU_BUS_ARBITER) | EMU_ETHERNET | EMU_BUS_ARBITER | EMU_NO_PAUSING;
 	else if (swissSettings.emulateMemoryCard)
-		return EMU_READ | EMU_MEMCARD | EMU_BUS_ARBITER;
-	else
-		return EMU_READ | EMU_BUS_ARBITER;
+		result |= EMU_MEMCARD;
+	
+	return result;
 }
 
 char* deviceHandler_FAT_status(file_handle* file) {

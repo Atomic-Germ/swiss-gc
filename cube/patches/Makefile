@@ -15,8 +15,8 @@ DISASM    = disassembly
 all: clean codehandler cpatches stub sdpatch ideexipatch dvdpatch usbgeckopatch wkfpatch fsppatch gcloaderpatch flippypatch
 
 stub: stub.bin
-sdpatch: sd-v1.bin sd-v1.card.bin sd-v1.dtk.bin sd-v1.eth.bin sd-v2.bin sd-v2.card.bin sd-v2.dtk.bin sd-v2.eth.bin
-ideexipatch: ideexi-v1.bin ideexi-v1.card.bin ideexi-v1.dtk.bin ideexi-v1.eth.bin ideexi-v2.bin ideexi-v2.card.bin ideexi-v2.dtk.bin ideexi-v2.eth.bin
+sdpatch: sd-v1.bin sd-v1.card.bin sd-v1.dtk.bin sd-v1.card.dtk.bin sd-v1.eth.bin sd-v2.bin sd-v2.card.bin sd-v2.dtk.bin sd-v2.card.dtk.bin sd-v2.eth.bin
+ideexipatch: ideexi-v1.bin ideexi-v1.card.bin ideexi-v1.dtk.bin ideexi-v1.card.dtk.bin ideexi-v1.eth.bin ideexi-v2.bin ideexi-v2.card.bin ideexi-v2.dtk.bin ideexi-v2.card.dtk.bin ideexi-v2.eth.bin
 dvdpatch: dvd.bin dvd.card.bin
 usbgeckopatch: usbgecko.bin
 wkfpatch: wkf.bin wkf.card.bin wkf.dtk.bin
@@ -150,6 +150,29 @@ sd-v1.dtk.bin:
 	@$(BIN2S) -H $(DEST)/sd_v1_dtk_bin.h sd-v1.dtk.bin > $(DEST)/sd-v1.dtk.bin.s
 	@rm -f *.bin *.elf *.o
 
+sd-v1.card.dtk.bin:
+	@echo Building SD-v1 Patch + CARD + DTK ...
+	@$(CC) -Os $(OPTS) -c base/base.S
+	@$(CC) -Os $(OPTS) -c base/emulator.c -DASYNC_READ -DCARD_EMULATOR -DDTK
+	@$(CC) -Os $(OPTS) -c base/emulator_card.c -DASYNC_READ
+	@$(CC) -Os $(OPTS) -c base/audio.c
+	@$(CC) -Os $(OPTS) -c base/fifo.c
+	@$(CC) -Os $(OPTS) -c base/frag.c
+	@$(CC) -Os $(OPTS) -c base/interrupt.c -DIRQ_MASK=0b00000000001001001000000000000000
+	@$(CC) -Os $(OPTS) -c base/ipl.c
+	@$(CC) -Os $(OPTS) -c base/blockdevice.c -DASYNC_READ -DDTK
+	@$(CC) -Os $(OPTS) -c sdgecko/sd.c -DDMA_READ=0 -DISR_READ=1 -DQUEUE_SIZE=4 -DWRITE=0
+	@$(CC) -Os $(OPTS) -c sdgecko/sd_isr.S
+	@$(CC) -Os $(OPTS) -c usbgecko/uart.c
+	@$(CC) -Os $(OPTS) -c base/dolphin/os.c
+	@$(CC) -Os $(OPTS) -c base/memcpy.S
+	@$(CC) -Os $(OPTS) -o sd-v1.card.dtk.elf -T base/base.ld -T base/common.ld -T base/dolphin/os.ld base.o emulator.o emulator_card.o audio.o fifo.o frag.o interrupt.o ipl.o blockdevice.o sd.o sd_isr.o uart.o os.o memcpy.o
+	@mkdir -p $(DISASM)
+	@$(OBJDUMP) -D sd-v1.card.dtk.elf > $(DISASM)/sd-v1.card.dtk.txt
+	@$(OBJCOPY) -O binary --set-section-flags .bss.*=alloc,load,contents sd-v1.card.dtk.elf sd-v1.card.dtk.bin
+	@$(BIN2S) -H $(DEST)/sd_v1_card_dtk_bin.h sd-v1.card.dtk.bin > $(DEST)/sd-v1.card.dtk.bin.s
+	@rm -f *.bin *.elf *.o
+
 sd-v1.eth.bin:
 	@echo Building SD-v1 Patch + ETH ...
 	@$(CC) -Os $(OPTS) -c base/base.S
@@ -252,6 +275,29 @@ sd-v2.dtk.bin:
 	@$(OBJDUMP) -D sd-v2.dtk.elf > $(DISASM)/sd-v2.dtk.txt
 	@$(OBJCOPY) -O binary --set-section-flags .bss.*=alloc,load,contents sd-v2.dtk.elf sd-v2.dtk.bin
 	@$(BIN2S) -H $(DEST)/sd_v2_dtk_bin.h sd-v2.dtk.bin > $(DEST)/sd-v2.dtk.bin.s
+	@rm -f *.bin *.elf *.o
+
+sd-v2.card.dtk.bin:
+	@echo Building SD-v2 Patch + CARD + DTK ...
+	@$(CC) -Os $(OPTS) -c base/base.S
+	@$(CC) -Os $(OPTS) -c base/emulator.c -DASYNC_READ -DCARD_EMULATOR -DDTK
+	@$(CC) -Os $(OPTS) -c base/emulator_card.c -DASYNC_READ
+	@$(CC) -Os $(OPTS) -c base/audio.c
+	@$(CC) -Os $(OPTS) -c base/fifo.c
+	@$(CC) -Os $(OPTS) -c base/frag.c
+	@$(CC) -Os $(OPTS) -c base/interrupt.c -DIRQ_MASK=0b00000000001001001000000000000000
+	@$(CC) -Os $(OPTS) -c base/ipl.c
+	@$(CC) -Os $(OPTS) -c base/blockdevice.c -DASYNC_READ -DDTK
+	@$(CC) -Os $(OPTS) -c sdgecko/sd.c -DDMA_READ=1 -DISR_READ=1 -DQUEUE_SIZE=4 -DWRITE=0
+	@$(CC) -Os $(OPTS) -c sdgecko/sd_isr.S -DDMA
+	@$(CC) -Os $(OPTS) -c usbgecko/uart.c
+	@$(CC) -Os $(OPTS) -c base/dolphin/os.c
+	@$(CC) -Os $(OPTS) -c base/memcpy.S
+	@$(CC) -Os $(OPTS) -o sd-v2.card.dtk.elf -T base/base.ld -T base/common.ld -T base/dolphin/os.ld base.o emulator.o emulator_card.o audio.o fifo.o frag.o interrupt.o ipl.o blockdevice.o sd.o sd_isr.o uart.o os.o memcpy.o
+	@mkdir -p $(DISASM)
+	@$(OBJDUMP) -D sd-v2.card.dtk.elf > $(DISASM)/sd-v2.card.dtk.txt
+	@$(OBJCOPY) -O binary --set-section-flags .bss.*=alloc,load,contents sd-v2.card.dtk.elf sd-v2.card.dtk.bin
+	@$(BIN2S) -H $(DEST)/sd_v2_card_dtk_bin.h sd-v2.card.dtk.bin > $(DEST)/sd-v2.card.dtk.bin.s
 	@rm -f *.bin *.elf *.o
 
 sd-v2.eth.bin:
@@ -358,6 +404,29 @@ ideexi-v1.dtk.bin:
 	@$(BIN2S) -H $(DEST)/ideexi_v1_dtk_bin.h ideexi-v1.dtk.bin > $(DEST)/ideexi-v1.dtk.bin.s
 	@rm -f *.bin *.elf *.o
 
+ideexi-v1.card.dtk.bin:
+	@echo Building IDE-EXI-v1 Patch + CARD + DTK ...
+	@$(CC) -Os $(OPTS) -c base/base.S
+	@$(CC) -Os $(OPTS) -c base/emulator.c -DASYNC_READ -DCARD_EMULATOR -DDTK
+	@$(CC) -Os $(OPTS) -c base/emulator_card.c -DASYNC_READ
+	@$(CC) -Os $(OPTS) -c base/audio.c
+	@$(CC) -Os $(OPTS) -c base/fifo.c
+	@$(CC) -Os $(OPTS) -c base/frag.c
+	@$(CC) -Os $(OPTS) -c base/interrupt.c -DIRQ_MASK=0b00000000001001000000000000000000
+	@$(CC) -Os $(OPTS) -c base/ipl.c
+	@$(CC) -Os $(OPTS) -c base/blockdevice.c -DASYNC_READ -DDTK
+	@$(CC) -Os $(OPTS) -c ide-exi/ata.c -DDMA_READ=0 -DISR_READ=1 -DQUEUE_SIZE=4 -DWRITE=0
+	@$(CC) -Os $(OPTS) -c ide-exi/ata_isr.S
+	@$(CC) -Os $(OPTS) -c usbgecko/uart.c
+	@$(CC) -Os $(OPTS) -c base/dolphin/os.c
+	@$(CC) -Os $(OPTS) -c base/memcpy.S
+	@$(CC) -Os $(OPTS) -o ideexi-v1.card.dtk.elf -T base/base.ld -T base/common.ld -T base/dolphin/os.ld base.o emulator.o emulator_card.o audio.o fifo.o frag.o interrupt.o ipl.o blockdevice.o ata.o ata_isr.o uart.o os.o memcpy.o
+	@mkdir -p $(DISASM)
+	@$(OBJDUMP) -D ideexi-v1.card.dtk.elf > $(DISASM)/ideexi-v1.card.dtk.txt
+	@$(OBJCOPY) -O binary --set-section-flags .bss.*=alloc,load,contents ideexi-v1.card.dtk.elf ideexi-v1.card.dtk.bin
+	@$(BIN2S) -H $(DEST)/ideexi_v1_card_dtk_bin.h ideexi-v1.card.dtk.bin > $(DEST)/ideexi-v1.card.dtk.bin.s
+	@rm -f *.bin *.elf *.o
+
 ideexi-v1.eth.bin:
 	@echo Building IDE-EXI-v1 Patch + ETH ...
 	@$(CC) -Os $(OPTS) -c base/base.S
@@ -460,6 +529,29 @@ ideexi-v2.dtk.bin:
 	@$(OBJDUMP) -D ideexi-v2.dtk.elf > $(DISASM)/ideexi-v2.dtk.txt
 	@$(OBJCOPY) -O binary --set-section-flags .bss.*=alloc,load,contents ideexi-v2.dtk.elf ideexi-v2.dtk.bin
 	@$(BIN2S) -H $(DEST)/ideexi_v2_dtk_bin.h ideexi-v2.dtk.bin > $(DEST)/ideexi-v2.dtk.bin.s
+	@rm -f *.bin *.elf *.o
+
+ideexi-v2.card.dtk.bin:
+	@echo Building IDE-EXI-v2 Patch + CARD + DTK ...
+	@$(CC) -Os $(OPTS) -c base/base.S
+	@$(CC) -Os $(OPTS) -c base/emulator.c -DASYNC_READ -DCARD_EMULATOR -DDTK
+	@$(CC) -Os $(OPTS) -c base/emulator_card.c -DASYNC_READ
+	@$(CC) -Os $(OPTS) -c base/audio.c
+	@$(CC) -Os $(OPTS) -c base/fifo.c
+	@$(CC) -Os $(OPTS) -c base/frag.c
+	@$(CC) -Os $(OPTS) -c base/interrupt.c -DIRQ_MASK=0b00000000001001000000000000000000
+	@$(CC) -Os $(OPTS) -c base/ipl.c
+	@$(CC) -Os $(OPTS) -c base/blockdevice.c -DASYNC_READ -DDTK
+	@$(CC) -Os $(OPTS) -c ide-exi/ata.c -DDMA_READ=1 -DISR_READ=1 -DQUEUE_SIZE=4 -DWRITE=0
+	@$(CC) -Os $(OPTS) -c ide-exi/ata_isr.S -DDMA
+	@$(CC) -Os $(OPTS) -c usbgecko/uart.c
+	@$(CC) -Os $(OPTS) -c base/dolphin/os.c
+	@$(CC) -Os $(OPTS) -c base/memcpy.S
+	@$(CC) -Os $(OPTS) -o ideexi-v2.card.dtk.elf -T base/base.ld -T base/common.ld -T base/dolphin/os.ld base.o emulator.o emulator_card.o audio.o fifo.o frag.o interrupt.o ipl.o blockdevice.o ata.o ata_isr.o uart.o os.o memcpy.o
+	@mkdir -p $(DISASM)
+	@$(OBJDUMP) -D ideexi-v2.card.dtk.elf > $(DISASM)/ideexi-v2.card.dtk.txt
+	@$(OBJCOPY) -O binary --set-section-flags .bss.*=alloc,load,contents ideexi-v2.card.dtk.elf ideexi-v2.card.dtk.bin
+	@$(BIN2S) -H $(DEST)/ideexi_v2_card_dtk_bin.h ideexi-v2.card.dtk.bin > $(DEST)/ideexi-v2.card.dtk.bin.s
 	@rm -f *.bin *.elf *.o
 
 ideexi-v2.eth.bin:
