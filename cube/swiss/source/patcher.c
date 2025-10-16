@@ -191,6 +191,10 @@ int install_code(int final)
 				patch     = !_ideexi_version ? ideexi_v1_card_bin      : ideexi_v2_card_bin;
 				patchSize = !_ideexi_version ? ideexi_v1_card_bin_size : ideexi_v2_card_bin_size;
 				break;
+			case EMU_READ | EMU_AUDIO_STREAMING | EMU_MEMCARD | EMU_BUS_ARBITER:
+				patch     = !_ideexi_version ? ideexi_v1_card_dtk_bin      : ideexi_v2_card_dtk_bin;
+				patchSize = !_ideexi_version ? ideexi_v1_card_dtk_bin_size : ideexi_v2_card_dtk_bin_size;
+				break;
 			case EMU_READ | EMU_ETHERNET | EMU_BUS_ARBITER | EMU_NO_PAUSING:
 				if (!strcmp(bba_device_str, "ENC28J60")) {
 					patch     = !_ideexi_version ? ideexi_v1_enc28j60_eth_bin      : ideexi_v2_enc28j60_eth_bin;
@@ -229,6 +233,10 @@ int install_code(int final)
 					patch     = sd_v1_card_bin;
 					patchSize = sd_v1_card_bin_size;
 					break;
+				case EMU_READ | EMU_AUDIO_STREAMING | EMU_MEMCARD | EMU_BUS_ARBITER:
+					patch     = sd_v1_card_dtk_bin;
+					patchSize = sd_v1_card_dtk_bin_size;
+					break;
 				case EMU_READ | EMU_ETHERNET | EMU_BUS_ARBITER | EMU_NO_PAUSING:
 					if (!strcmp(bba_device_str, "ENC28J60")) {
 						patch     = sd_v1_enc28j60_eth_bin;
@@ -262,6 +270,10 @@ int install_code(int final)
 				case EMU_READ | EMU_MEMCARD | EMU_BUS_ARBITER:
 					patch     = sd_v2_card_bin;
 					patchSize = sd_v2_card_bin_size;
+					break;
+				case EMU_READ | EMU_AUDIO_STREAMING | EMU_MEMCARD | EMU_BUS_ARBITER:
+					patch     = sd_v2_card_dtk_bin;
+					patchSize = sd_v2_card_dtk_bin_size;
 					break;
 				case EMU_READ | EMU_ETHERNET | EMU_BUS_ARBITER | EMU_NO_PAUSING:
 					if (!strcmp(bba_device_str, "ENC28J60")) {

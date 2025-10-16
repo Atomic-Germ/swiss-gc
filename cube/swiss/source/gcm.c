@@ -180,6 +180,8 @@ u32 calc_elf_segments_size(file_handle *file, u32 file_offset, u32 *file_size) {
 	u32 size = 0;
 	
 	Elf32_Ehdr *ehdr = calloc(1, sizeof(Elf32_Ehdr));
+	if(!ehdr) return size;
+	
 	file->device->seekFile(file, file_offset, DEVICE_HANDLER_SEEK_SET);
 	file->device->readFile(file, ehdr, sizeof(Elf32_Ehdr));
 	if(!valid_elf_image(ehdr)) {
@@ -188,6 +190,11 @@ u32 calc_elf_segments_size(file_handle *file, u32 file_offset, u32 *file_size) {
 	}
 	
 	Elf32_Phdr *phdr = calloc(ehdr->e_phnum, sizeof(Elf32_Phdr));
+	if(!phdr) {
+		free(ehdr);
+		return size;
+	}
+	
 	file->device->seekFile(file, file_offset + ehdr->e_phoff, DEVICE_HANDLER_SEEK_SET);
 	file->device->readFile(file, phdr, ehdr->e_phnum * sizeof(Elf32_Phdr));
 	
@@ -255,7 +262,7 @@ int parse_gcm(file_handle *file, file_handle *file2, ExecutableFile *filesToPatc
 	filesToPatch[numFiles].offset = 0x2440;
 	filesToPatch[numFiles].size = sizeof(ApploaderHeader) + ((apploaderHeader.size + 31) & ~31) + ((apploaderHeader.rebootSize + 31) & ~31);
 	filesToPatch[numFiles].type = PATCH_APPLOADER;
-	sprintf(filesToPatch[numFiles].name, "apploader.img");
+	snprintf(filesToPatch[numFiles].name, sizeof(filesToPatch[numFiles].name), "apploader.img");
 	numFiles++;
 
 	dolOffset = diskHeader->DOLOffset;
@@ -274,7 +281,7 @@ int parse_gcm(file_handle *file, file_handle *file2, ExecutableFile *filesToPatc
 			filesToPatch[numFiles].type = PATCH_BIN;
 			filesToPatch[numFiles].fstOffset = diskHeader->FSTOffset;
 			filesToPatch[numFiles].fstSize = diskHeader->FSTSize;
-			sprintf(filesToPatch[numFiles].name, "default.bin");
+			snprintf(filesToPatch[numFiles].name, sizeof(filesToPatch[numFiles].name), "default.bin");
 			numFiles++;
 		}
 		else {
@@ -294,7 +301,7 @@ int parse_gcm(file_handle *file, file_handle *file2, ExecutableFile *filesToPatc
 			filesToPatch[numFiles].type = PATCH_DOL;
 			filesToPatch[numFiles].fstOffset = diskHeader->FSTOffset;
 			filesToPatch[numFiles].fstSize = diskHeader->FSTSize;
-			sprintf(filesToPatch[numFiles].name, "default.dol");
+			snprintf(filesToPatch[numFiles].name, sizeof(filesToPatch[numFiles].name), "default.dol");
 			numFiles++;
 		}
 	}
@@ -393,7 +400,7 @@ int parse_gcm(file_handle *file, file_handle *file2, ExecutableFile *filesToPatc
 	filesToPatch[numFiles].offset = 0;
 	filesToPatch[numFiles].size = 0x2440;
 	filesToPatch[numFiles].type = PATCH_OTHER;
-	sprintf(filesToPatch[numFiles].name, "boot.bin");
+	snprintf(filesToPatch[numFiles].name, sizeof(filesToPatch[numFiles].name), "boot.bin");
 	numFiles++;
 	return numFiles;
 }
@@ -438,7 +445,7 @@ int parse_tgc(file_handle *file, ExecutableFile *filesToPatch, u32 tgc_base, cha
 		filesToPatch[numFiles].offset = tgc_base+tgcHeader.apploaderOffset;
 		filesToPatch[numFiles].size = sizeof(ApploaderHeader) + ((apploaderHeader.size + 31) & ~31) + ((apploaderHeader.rebootSize + 31) & ~31);
 		filesToPatch[numFiles].type = PATCH_APPLOADER;
-		sprintf(filesToPatch[numFiles].name, "%s/%s", tgcname, "apploader.img");
+		snprintf(filesToPatch[numFiles].name, sizeof(filesToPatch[numFiles].name), "%s/%s", tgcname, "apploader.img");
 		numFiles++;
 	}
 	
@@ -451,7 +458,7 @@ int parse_tgc(file_handle *file, ExecutableFile *filesToPatch, u32 tgc_base, cha
 	filesToPatch[numFiles].tgcBase = tgc_base+file->fileBase;
 	filesToPatch[numFiles].tgcFileStartArea = tgcHeader.userStart;
 	filesToPatch[numFiles].tgcFakeOffset = tgcHeader.gcmUserStart;
-	sprintf(filesToPatch[numFiles].name, "%s/%s", tgcname, "default.dol");
+	snprintf(filesToPatch[numFiles].name, sizeof(filesToPatch[numFiles].name), "%s/%s", tgcname, "default.dol");
 	numFiles++;
 
 	// Alloc and read FST
@@ -583,7 +590,7 @@ int patch_gcm(ExecutableFile *filesToPatch, int numToPatch) {
 	for(i = 0; i < numToPatch; i++) {
 		ExecutableFile *fileToPatch = &filesToPatch[i];
 
-		sprintf(txtbuffer, "Patching File %i/%i\n%s [%iKB]",i+1,numToPatch,fileToPatch->name,fileToPatch->size/1024);
+		snprintf(txtbuffer, sizeof(txtbuffer), "Patching File %i/%i\n%s [%iKB]",i+1,numToPatch,fileToPatch->name,fileToPatch->size/1024);
 		
 		if(fileToPatch->size > 8*1024*1024) {
 			print_debug("Skipping %s %iKB too large\n", fileToPatch->name, fileToPatch->size/1024);
@@ -599,6 +606,10 @@ int patch_gcm(ExecutableFile *filesToPatch, int numToPatch) {
 		
 		u32 sizeToRead = (fileToPatch->size + 31) & ~31;
 		void *buffer = memalign(32, sizeToRead);
+		if(!buffer) {
+			message = "Failed to allocate memory!";
+			goto fail;
+		}
 		
 		devices[DEVICE_CUR]->seekFile(fileToPatch->file,fileToPatch->offset,DEVICE_HANDLER_SEEK_SET);
 		int ret = devices[DEVICE_CUR]->readFile(fileToPatch->file,buffer,sizeToRead);
@@ -619,7 +630,9 @@ int patch_gcm(ExecutableFile *filesToPatch, int numToPatch) {
 				filesToPatch[i].size = filesToPatch[j].size;
 				if(filesToPatch[j].patchFile) {
 					filesToPatch[i].patchFile = calloc(1, sizeof(file_handle));
-					strcpy(filesToPatch[i].patchFile->name, filesToPatch[j].patchFile->name);
+					if(filesToPatch[i].patchFile) {
+						strcpy(filesToPatch[i].patchFile->name, filesToPatch[j].patchFile->name);
+					}
 				}
 				goto fail;
 			}
@@ -689,6 +702,10 @@ int patch_gcm(ExecutableFile *filesToPatch, int numToPatch) {
 			
 			// File handle for a patch we might need to write
 			fileToPatch->patchFile = calloc(1, sizeof(file_handle));
+			if(!fileToPatch->patchFile) {
+				message = "Failed to allocate memory!";
+				goto fail;
+			}
 			
 			if(devices[DEVICE_PATCHES] == &__device_fsp)
 				concatf_path(fileToPatch->patchFile->name, devices[DEVICE_PATCHES]->initial->name, "swiss/patches/game/%016llx%016llx.bin", new_hash.high64, new_hash.low64);
@@ -772,6 +789,11 @@ int read_fst(file_handle *file, file_handle** dir, u64 *usedSpace) {
 	if(isRoot) {
 		// Add the disc itself as a "file"
 		*dir = calloc(numFiles, sizeof(file_handle));
+		if(!*dir) {
+			free(diskHeader);
+			free(FST);
+			return -1;
+		}
 		concatf_path((*dir)[idx].name, file->name, "%.64s [%.6s].gcm", stripInvalidChars(diskHeader->GameName), diskHeader);
 		(*dir)[idx].fileBase = 0;
 		(*dir)[idx].offset = 0;
@@ -797,6 +819,11 @@ int read_fst(file_handle *file, file_handle** dir, u64 *usedSpace) {
 	if(!isRoot) {
 		// Add a special ".." dir which will take us back up a dir
 		*dir = calloc(numFiles, sizeof(file_handle));
+		if(!*dir) {
+			free(diskHeader);
+			free(FST);
+			return -1;
+		}
 		concat_path((*dir)[idx].name, file->name, "..");
 		(*dir)[idx].fileBase = *(u32*)&FST[(parent_dir_offset*0x0C)+4];
 		(*dir)[idx].offset = 0;
@@ -825,7 +852,14 @@ int read_fst(file_handle *file, file_handle** dir, u64 *usedSpace) {
 				//print_debug("Adding: [%03i]%s:%s offset %08X length %08X\n",i,!FST[offset] ? "File" : "Dir",filename,file_offset,size);
 				if(idx == numFiles){
 					++numFiles;
-					*dir = reallocarray(*dir, numFiles, sizeof(file_handle));
+					file_handle *new_dir = reallocarray(*dir, numFiles, sizeof(file_handle));
+					if(!new_dir) {
+						free(*dir);
+						free(diskHeader);
+						free(FST);
+						return -1;
+					}
+					*dir = new_dir;
 				}
 				memset(&(*dir)[idx], 0, sizeof(file_handle));
 				strcpy((*dir)[idx].name, filename);
@@ -845,7 +879,14 @@ int read_fst(file_handle *file, file_handle** dir, u64 *usedSpace) {
 			//print_debug("Adding: [%03i]%s:%s offset %08X length %08X\n",i,!FST[offset] ? "File" : "Dir",filename,file_offset,size);
 			if(idx == numFiles){
 				++numFiles;
-				*dir = reallocarray(*dir, numFiles, sizeof(file_handle));
+				file_handle *new_dir = reallocarray(*dir, numFiles, sizeof(file_handle));
+				if(!new_dir) {
+					free(*dir);
+					free(diskHeader);
+					free(FST);
+					return -1;
+				}
+				*dir = new_dir;
 			}
 			memset(&(*dir)[idx], 0, sizeof(file_handle));
 			strcpy((*dir)[idx].name, filename);
